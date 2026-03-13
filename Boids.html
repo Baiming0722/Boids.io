@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Boids Simple Flocking</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #0a0a0a; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="boidsCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('boidsCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        let width, height;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 建立 150 隻鳥 (Boids)
+        const boids = Array.from({ length: 150 }, () => ({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            vx: (Math.random() - 0.5) * 4,
+            vy: (Math.random() - 0.5) * 4
+        }));
+
+        function update() {
+            // 繪製拖影背景
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.2)';
+            ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = '#00ffff';
+
+            for (let b of boids) {
+                let sx = 0, sy = 0; // 分離 (Separation)
+                let ax = 0, ay = 0; // 對齊 (Alignment)
+                let cx = 0, cy = 0; // 凝聚 (Cohesion)
+                let total = 0;
+
+                for (let other of boids) {
+                    if (b === other) continue;
+                    let dx = b.x - other.x, dy = b.y - other.y;
+                    let distSq = dx * dx + dy * dy;
+
+                    if (distSq < 4000) { // 感知半徑內
+                        if (distSq < 400) { // 避碰半徑內
+                            sx += dx; sy += dy;
+                        }
+                        ax += other.vx; ay += other.vy;
+                        cx += other.x; cy += other.y;
+                        total++;
+                    }
+                }
+
+                if (total > 0) {
+                    // 套用三原則權重
+                    b.vx += (sx * 0.03) + ((ax / total - b.vx) * 0.05) + ((cx / total - b.x) * 0.001);
+                    b.vy += (sy * 0.03) + ((ay / total - b.vy) * 0.05) + ((cy / total - b.y) * 0.001);
+                }
+
+                // 限制速度，保持群體活力
+                let speed = Math.hypot(b.vx, b.vy);
+                let minSpeed = 2, maxSpeed = 5;
+                if (speed > maxSpeed) { b.vx = (b.vx / speed) * maxSpeed; b.vy = (b.vy / speed) * maxSpeed; }
+                if (speed < minSpeed) { b.vx = (b.vx / speed) * minSpeed; b.vy = (b.vy / speed) * minSpeed; }
+
+                // 更新位置
+                b.x += b.vx;
+                b.y += b.vy;
+
+                // 邊界穿透
+                if (b.x < 0) b.x = width; else if (b.x > width) b.x = 0;
+                if (b.y < 0) b.y = height; else if (b.y > height) b.y = 0;
+
+                // 繪製
+                ctx.save();
+                ctx.translate(b.x, b.y);
+                ctx.rotate(Math.atan2(b.vy, b.vx));
+                ctx.beginPath();
+                ctx.moveTo(6, 0);   // 頭
+                ctx.lineTo(-4, 3);  // 左翼
+                ctx.lineTo(-2, 0);  // 尾部凹陷，像燕魚
+                ctx.lineTo(-4, -3); // 右翼
+                ctx.fill();
+                ctx.restore();
+            }
+            requestAnimationFrame(update);
+        }
+        update();
+    </script>
+</body>
+</html>
